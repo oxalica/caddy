@@ -18,6 +18,7 @@ require (
 	github.com/klauspost/compress v1.17.8
 	github.com/klauspost/cpuid/v2 v2.2.7
 	github.com/mholt/acmez/v2 v2.0.1
+	github.com/mholt/caddy-webdav v0.0.0-20240522223621-0f2910d52a7e
 	github.com/prometheus/client_golang v1.19.1
 	github.com/quic-go/quic-go v0.44.0
 	github.com/smallstep/certificates v0.26.1
