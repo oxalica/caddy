@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/sync/singleflight"
 
 	"github.com/caddyserver/caddy/v2"
@@ -92,15 +93,11 @@ func (hba *HTTPBasicAuth) Provision(ctx caddy.Context) error {
 		return fmt.Errorf("hash is required")
 	}
 
-	// if supported, generate a fake password we can compare against if needed
-	if hasher, ok := hba.Hash.(Hasher); ok {
-		hba.fakePassword = hasher.FakeHash()
-	}
-
 	repl := caddy.NewReplacer()
 
 	// load account list
 	hba.Accounts = make(map[string]Account)
+	hashCost := 0
 	for i, acct := range hba.AccountList {
 		if _, ok := hba.Accounts[acct.Username]; ok {
 			return fmt.Errorf("account %d: username is not unique: %s", i, acct.Username)
@@ -126,9 +123,32 @@ func (hba *HTTPBasicAuth) Provision(ctx caddy.Context) error {
 			}
 		}
 
+                // FIXME: Only support bcrypt here.
+		curHashCost, err := bcrypt.Cost(acct.password)
+		if err != nil {
+			return fmt.Errorf("account %d: invalid bcrypt hash, must be a bcrypt-2a hash");
+		}
+		if hashCost != 0 && hashCost != curHashCost {
+			return fmt.Errorf("account %d: all bcrypt cost must be the same");
+		}
+		hashCost = curHashCost
+
 		hba.Accounts[acct.Username] = acct
 	}
 	hba.AccountList = nil // allow GC to deallocate
+
+	if hashCost == 0 {
+		// FIXME: Hardcoded default cost.
+		hashCost = 14;
+	}
+
+	// if supported, generate a fake password we can compare against if needed
+	if hasher, ok := hba.Hash.(Hasher); ok {
+		hba.fakePassword, err = hasher.FakeHash(hashCost)
+		if err != nil {
+			return fmt.Errorf("failed to generate fake hash");
+		}
+	}
 
 	if hba.HashCache != nil {
 		hba.HashCache.cache = make(map[string]bool)
@@ -280,7 +300,7 @@ type Comparer interface {
 // can be used for timing side-channel mitigation.
 type Hasher interface {
 	Hash(plaintext []byte) ([]byte, error)
-	FakeHash() []byte
+	FakeHash(cost int) ([]byte, error)
 }
 
 // Account contains a username and password.

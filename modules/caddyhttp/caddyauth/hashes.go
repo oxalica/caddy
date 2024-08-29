@@ -53,10 +53,8 @@ func (BcryptHash) Hash(plaintext []byte) ([]byte, error) {
 }
 
 // FakeHash returns a fake hash.
-func (BcryptHash) FakeHash() []byte {
-	// hashed with the following command:
-	// caddy hash-password --plaintext "antitiming" --algorithm "bcrypt"
-	return []byte("$2a$14$X3ulqf/iGxnf1k6oMZ.RZeJUoqI9PX2PM4rS5lkIKJXduLGXGPrt6")
+func (BcryptHash) FakeHash(cost int) ([]byte, error) {
+        return bcrypt.GenerateFromPassword([]byte("antitiming"), cost)
 }
 
 // Interface guards
